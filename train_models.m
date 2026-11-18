@@ -125,17 +125,24 @@ title('Cross-validated macro F1 by model');
 exportgraphics(fig1, fullfile(figDir, 'cv_macroF1.png'), 'Resolution', 200);
 
 %% Figure: Confusion Matrices
-%Row-normalized CV confusion matrices, so the diagonal is each class's recall
-fig2 = figure('Name', 'CV confusion matrices', 'Position', [100 100 1400 700]);
-t = tiledlayout(fig2, 2, ceil(numel(models) / 2), 'TileSpacing', 'compact');
-for i = 1:numel(models)
-    R = results.(models(i));
-    cc = confusionchart(t, y_train, R.cvPred, 'Normalization', 'row-normalized');
-    cc.Layout.Tile = i;
-    sortClasses(cc, cellstr(classNames));
-    cc.Title = sprintf('%s (macro F1 %.3f)', R.name, mean(R.foldMetrics.MacroF1));
+%One row-normalized CV confusion matrix per model, so the diagonal is each class's recall
+%Each model gets its own figure so the chart is centered and can be captioned separately in the paper
+%Underscores in class names are replaced with spaces so they are not drawn as subscripts
+plotNames = strrep(cellstr(classNames), '_', ' ');
+yPlot = renamecats(y_train, cellstr(classNames), plotNames);
+for m = models
+    R = results.(m);
+    predPlot = renamecats(categorical(R.cvPred, cellstr(classNames)), cellstr(classNames), plotNames);
+
+    figCM = figure('Name', "CV confusion matrix - " + m, 'Position', [100 100 700 600]);
+    cc = confusionchart(figCM, yPlot, predPlot, 'Normalization', 'row-normalized');
+    sortClasses(cc, plotNames);
+    cc.Title = sprintf('%s (CV macro F1 %.3f)', R.name, mean(R.foldMetrics.MacroF1));
+    cc.XLabel = 'Predicted tier';
+    cc.YLabel = 'True tier';
+
+    exportgraphics(figCM, fullfile(figDir, "cv_confusion_" + m + ".png"), 'Resolution', 200);
 end
-exportgraphics(fig2, fullfile(figDir, 'cv_confusion.png'), 'Resolution', 200);
 
 %% Helper: summaryRow
 %One results-table row: mean and SD of the fold metrics, per-class recall and timings
